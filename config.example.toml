@@ -1,0 +1,39 @@
+# Kopiere diese Datei nach ~/.config/keydict/config.toml.
+
+[api]
+# Jeder OpenAI-kompatible /audio/transcriptions-Endpunkt funktioniert.
+url = "https://api.openai.com/v1/audio/transcriptions"
+# Direkt: api_key = "sk-proj-..."
+# Per Umgebungsvariable: api_key = "${OPENAI_API_KEY}"
+api_key = "${OPENAI_API_KEY}"
+model = "gpt-4o-mini-transcribe"
+language = "de"
+# prompt = "Eigennamen oder Fachbegriffe, die das Modell kennen soll"
+timeout_seconds = 120
+
+[hotkey]
+# Beispiele: "F8", "CTRL+ALT+D", "RIGHTCTRL+SPACE"
+key = "F8"
+# "hold": gedrueckt halten; "toggle": einmal Start, noch einmal Stopp
+mode = "hold"
+# "auto" versucht evdev, dann unter X11 einen Benutzer-Hotkey. Alternativ
+# "external", wenn der Desktop `keydict trigger` global ausfuehren soll.
+backend = "auto"
+# Optional: Teil des evdev-Geraetenamens, z. B. "Keychron"
+# device = ""
+
+[audio]
+# Leer lassen fuer das Standardmikrofon. Name oder numerische ID sind moeglich.
+# device = ""
+channels = 1
+# 0 verwendet die Standard-Samplerate des Aufnahmegeraets.
+sample_rate = 0
+
+[output]
+# "clipboard" kopiert nur; "paste" fuegt in das aktive Fenster ein.
+mode = "paste"
+paste_delay_ms = 120
+
+[general]
+notify = true
+log_level = "INFO"

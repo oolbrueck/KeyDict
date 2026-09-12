@@ -1,0 +1,25 @@
+[api]
+url = "https://api.openai.com/v1/audio/transcriptions"
+# Direkt: api_key = "sk-proj-..."
+# Per Umgebungsvariable: api_key = "${OPENAI_API_KEY}"
+api_key = "${OPENAI_API_KEY}"
+model = "gpt-4o-mini-transcribe"
+language = "de"
+timeout_seconds = 120
+
+[hotkey]
+key = "F8"
+mode = "hold"
+backend = "auto"
+
+[audio]
+channels = 1
+sample_rate = 0
+
+[output]
+mode = "paste"
+paste_delay_ms = 120
+
+[general]
+notify = true
+log_level = "INFO"

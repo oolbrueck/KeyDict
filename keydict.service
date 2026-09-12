@@ -1,0 +1,12 @@
+[Unit]
+Description=KeyDict speech-to-text daemon
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/keydict run
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
