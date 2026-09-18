@@ -11,7 +11,7 @@ from .service import KeyDictService, send_trigger
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="keydict", description="Sprachdiktion fuer Linux")
+    parser = argparse.ArgumentParser(prog="keydict", description="Sprachdiktion fuer Linux und Windows")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG, help="Pfad zur TOML-Konfiguration")
     commands = parser.add_subparsers(dest="command")
     commands.add_parser("run", help="KeyDict im Vordergrund starten")
@@ -27,7 +27,10 @@ def init_config(destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     template = importlib.resources.files("keydict").joinpath("config.example.toml").read_text(encoding="utf-8")
     destination.write_text(template, encoding="utf-8")
-    destination.chmod(0o600)
+    # chmod protects the key on POSIX. Windows access is governed by the
+    # user's profile ACL, and chmod intentionally has no security meaning there.
+    if sys.platform != "win32":
+        destination.chmod(0o600)
     print(f"Konfiguration angelegt: {destination}")
 
 

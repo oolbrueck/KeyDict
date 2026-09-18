@@ -1,4 +1,5 @@
-# Kopiere diese Datei nach ~/.config/keydict/config.toml.
+# Linux: ~/.config/keydict/config.toml
+# Windows: %APPDATA%\KeyDict\config.toml
 
 [api]
 # Jeder OpenAI-kompatible /audio/transcriptions-Endpunkt funktioniert.
@@ -16,10 +17,10 @@ timeout_seconds = 120
 key = "F8"
 # "hold": gedrueckt halten; "toggle": einmal Start, noch einmal Stopp
 mode = "hold"
-# "auto" versucht evdev, dann unter X11 einen Benutzer-Hotkey. Alternativ
-# "external", wenn der Desktop `keydict trigger` global ausfuehren soll.
+# "auto" verwendet unter Windows den pynput-Listener und versucht unter Linux
+# evdev, dann X11. Explizit sind auch "pynput" und "external" moeglich.
 backend = "auto"
-# Optional: Teil des evdev-Geraetenamens, z. B. "Keychron"
+# Optional (nur evdev/Linux): Teil des Geraetenamens, z. B. "Keychron"
 # device = ""
 
 [audio]

@@ -5,15 +5,16 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "keydict"
 version = "0.1.0"
-description = "Configurable push-to-talk and toggle dictation for Linux"
+description = "Configurable push-to-talk and toggle dictation for Linux and Windows"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
-    "evdev>=1.7,<2",
+    "evdev>=1.7,<2; platform_system == 'Linux'",
     "pynput>=1.7.7,<2",
     "requests>=2.31,<3",
     "sounddevice>=0.4.6,<1",
+    "winotify>=1.1,<2; platform_system == 'Windows'",
 ]
 
 [project.scripts]

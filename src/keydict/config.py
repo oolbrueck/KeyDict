@@ -2,13 +2,21 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 
-DEFAULT_CONFIG = Path.home() / ".config" / "keydict" / "config.toml"
+def _default_config_path() -> Path:
+    if sys.platform == "win32":
+        config_root = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+        return config_root / "KeyDict" / "config.toml"
+    return Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "keydict" / "config.toml"
+
+
+DEFAULT_CONFIG = _default_config_path()
 _ENV_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)}")
 
 
@@ -113,8 +121,10 @@ def load_config(path: Path) -> Config:
     if hotkey_mode not in {"hold", "toggle"}:
         raise ConfigError("[hotkey].mode muss 'hold' oder 'toggle' sein")
     backend = str(hotkey.get("backend", "auto")).lower()
-    if backend not in {"auto", "evdev", "x11", "external"}:
-        raise ConfigError("[hotkey].backend muss 'auto', 'evdev', 'x11' oder 'external' sein")
+    if backend not in {"auto", "evdev", "pynput", "x11", "windows", "external"}:
+        raise ConfigError(
+            "[hotkey].backend muss 'auto', 'evdev', 'pynput', 'x11', 'windows' oder 'external' sein"
+        )
     output_mode = str(output.get("mode", "paste")).lower()
     if output_mode not in {"clipboard", "paste"}:
         raise ConfigError("[output].mode muss 'clipboard' oder 'paste' sein")

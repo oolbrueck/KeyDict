@@ -2,13 +2,25 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import select
+import sys
 from collections.abc import Callable
+from typing import Any
 
-from evdev import InputDevice, ecodes, list_devices
+if sys.platform.startswith("linux"):
+    try:
+        from evdev import InputDevice, ecodes, list_devices
+    except ImportError:  # pragma: no cover - reported when the backend is selected
+        InputDevice = None  # type: ignore[assignment,misc]
+        ecodes = None  # type: ignore[assignment]
+        list_devices = None  # type: ignore[assignment]
+else:
+    InputDevice = None  # type: ignore[assignment,misc]
+    ecodes = None  # type: ignore[assignment]
+    list_devices = None  # type: ignore[assignment]
 
 from .config import HotkeyConfig
-
 
 LOG = logging.getLogger(__name__)
 
@@ -35,9 +47,13 @@ class HotkeyError(RuntimeError):
 
 
 def parse_hotkey(value: str) -> frozenset[int]:
+    if ecodes is None:
+        raise HotkeyError("Der evdev-Hotkey ist nur unter Linux verfuegbar")
     codes: set[int] = set()
     for raw_part in value.upper().replace(" ", "").split("+"):
-        name = _ALIASES.get(raw_part, raw_part if raw_part.startswith("KEY_") else f"KEY_{raw_part}")
+        name = _ALIASES.get(
+            raw_part, raw_part if raw_part.startswith("KEY_") else f"KEY_{raw_part}"
+        )
         code = getattr(ecodes, name, None)
         if not isinstance(code, int):
             raise HotkeyError(f"Unbekannte Taste in [hotkey].key: {raw_part!r}")
@@ -58,10 +74,12 @@ class EvdevHotkey:
         self.on_press = on_press
         self.on_release = on_release
         self.codes = parse_hotkey(config.key)
-        self._devices: list[InputDevice] = []
+        self._devices: list[Any] = []
 
-    def _open_devices(self) -> list[InputDevice]:
-        devices: list[InputDevice] = []
+    def _open_devices(self) -> list[Any]:
+        if InputDevice is None or list_devices is None or ecodes is None:
+            raise HotkeyError("Der evdev-Hotkey ist nur unter Linux verfuegbar")
+        devices: list[Any] = []
         denied: list[str] = []
         for path in list_devices():
             try:
@@ -70,7 +88,10 @@ class EvdevHotkey:
                 if not self.codes.intersection(capabilities):
                     device.close()
                     continue
-                if self.config.device and self.config.device.lower() not in device.name.lower():
+                if (
+                    self.config.device
+                    and self.config.device.lower() not in device.name.lower()
+                ):
                     device.close()
                     continue
                 devices.append(device)
@@ -88,7 +109,11 @@ class EvdevHotkey:
 
     def run(self) -> None:
         self._devices = self._open_devices()
-        LOG.info("Hotkey %s aktiv auf: %s", self.config.key, ", ".join(d.name for d in self._devices))
+        LOG.info(
+            "Hotkey %s aktiv auf: %s",
+            self.config.key,
+            ", ".join(d.name for d in self._devices),
+        )
         pressed: set[int] = set()
         active = False
         while True:
@@ -131,17 +156,65 @@ def _pynput_key_names(value: str) -> frozenset[str]:
         "SPACE": "space",
         "ENTER": "enter",
         "ESC": "esc",
+        "ESCAPE": "esc",
+        "WIN": "cmd_l",
+        "WINDOWS": "cmd_l",
+        "DEL": "delete",
+        "PAGEUP": "page_up",
+        "PAGEDOWN": "page_down",
+        "CAPSLOCK": "caps_lock",
+        "BACKSPACE": "backspace",
+        "TAB": "tab",
+    }
+    special_names = {
+        "alt_l",
+        "alt_r",
+        "backspace",
+        "caps_lock",
+        "cmd_l",
+        "cmd_r",
+        "ctrl_l",
+        "ctrl_r",
+        "delete",
+        "down",
+        "end",
+        "enter",
+        "esc",
+        "home",
+        "insert",
+        "left",
+        "menu",
+        "num_lock",
+        "page_down",
+        "page_up",
+        "pause",
+        "print_screen",
+        "right",
+        "scroll_lock",
+        "shift_l",
+        "shift_r",
+        "space",
+        "tab",
+        "up",
     }
     for raw_part in value.upper().replace(" ", "").split("+"):
         if not raw_part:
             continue
-        names.add(aliases.get(raw_part, raw_part.lower()))
+        normalized = raw_part.removeprefix("KEY_")
+        name = aliases.get(normalized, normalized.lower())
+        if not (
+            len(name) == 1
+            or name in special_names
+            or re.fullmatch(r"f(?:[1-9]|1[0-9]|2[0-4])", name)
+        ):
+            raise HotkeyError(f"Unbekannte Taste in [hotkey].key: {raw_part!r}")
+        names.add(name)
     if not names:
         raise HotkeyError("[hotkey].key ist leer")
     return frozenset(names)
 
 
-class X11Hotkey:
+class PynputHotkey:
     def __init__(
         self,
         config: HotkeyConfig,
@@ -155,7 +228,12 @@ class X11Hotkey:
 
     @staticmethod
     def available() -> bool:
-        return bool(os.environ.get("DISPLAY")) and os.environ.get("XDG_SESSION_TYPE", "x11").lower() != "wayland"
+        if sys.platform == "win32":
+            return True
+        return (
+            bool(os.environ.get("DISPLAY"))
+            and os.environ.get("XDG_SESSION_TYPE", "x11").lower() != "wayland"
+        )
 
     @staticmethod
     def _name(key) -> str | None:  # noqa: ANN001
@@ -167,11 +245,13 @@ class X11Hotkey:
 
     def run(self) -> None:
         if not self.available():
-            raise HotkeyError("Keine native X11-Sitzung gefunden")
+            raise HotkeyError("Kein unterstuetztes Desktop-Hotkey-System gefunden")
         try:
             from pynput import keyboard
         except Exception as exc:
-            raise HotkeyError(f"X11-Hotkey konnte nicht geladen werden: {exc}") from exc
+            raise HotkeyError(
+                f"Desktop-Hotkey konnte nicht geladen werden: {exc}"
+            ) from exc
 
         pressed: set[str] = set()
         active = False
@@ -196,9 +276,14 @@ class X11Hotkey:
                 active = False
                 self.on_release()
 
-        LOG.info("Hotkey %s aktiv ueber X11", self.config.key)
+        backend_name = "Windows" if sys.platform == "win32" else "X11"
+        LOG.info("Hotkey %s aktiv ueber %s", self.config.key, backend_name)
         try:
             with keyboard.Listener(on_press=press, on_release=release) as listener:
                 listener.join()
         except Exception as exc:
-            raise HotkeyError(f"X11-Hotkey fehlgeschlagen: {exc}") from exc
+            raise HotkeyError(f"Desktop-Hotkey fehlgeschlagen: {exc}") from exc
+
+
+# Kept as a compatibility name for callers that selected the former X11 backend.
+X11Hotkey = PynputHotkey

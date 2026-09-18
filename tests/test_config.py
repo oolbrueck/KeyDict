@@ -6,8 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from keydict.config import ConfigError, load_config
-
+from keydict.config import ConfigError, _default_config_path, load_config
 
 VALID_CONFIG = """
 [api]
@@ -25,6 +24,15 @@ mode = "clipboard"
 
 
 class ConfigTests(unittest.TestCase):
+    def test_windows_default_config_uses_appdata(self) -> None:
+        with patch("keydict.config.sys.platform", "win32"), patch.dict(
+            os.environ, {"APPDATA": r"C:\Users\test\AppData\Roaming"}
+        ):
+            self.assertEqual(
+                _default_config_path(),
+                Path(r"C:\Users\test\AppData\Roaming") / "KeyDict" / "config.toml",
+            )
+
     def write_config(self, text: str) -> Path:
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
